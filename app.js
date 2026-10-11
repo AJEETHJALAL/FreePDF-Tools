@@ -46,6 +46,22 @@
   function checkPDF(file) { return file && (file.type === "application/pdf" || /\.pdf$/i.test(file.name)); }
   function checkImage(file) { return file && (/^image\/(jpeg|png)$/.test(file.type) || /\.(jpe?g|png)$/i.test(file.name)); }
 
+  // Reset only the completed tool's inputs. This gives the user a fresh form
+  // without reloading the whole page (which can interfere with downloads).
+  function resetTool(tool) {
+    if (tool === "images") {
+      state.images = []; $("imageFiles").value = ""; updateImages();
+    } else if (tool === "merge") {
+      state.merge = []; $("mergeFiles").value = ""; updateMerge();
+    } else if (tool === "split") {
+      state.split = null; $("splitFile").value = ""; $("splitInfo").textContent = "";
+      $("pageRanges").value = ""; $("pageRanges").disabled = true; $("splitConvert").disabled = true;
+      delete $("splitConvert").dataset.pageCount;
+    } else if (tool === "tojpg") {
+      state.tojpg = null; $("tojpgFile").value = ""; $("tojpgInfo").textContent = ""; $("tojpgConvert").disabled = true;
+    }
+  }
+
   $("imageFiles").addEventListener("change", e => {
     clearStatus();
     const incoming = [...e.target.files].filter(checkImage);
@@ -56,6 +72,7 @@
   function updateImages() { renderFiles($("imageList"), state.images, i => { state.images.splice(i,1); updateImages(); }); $("imagesConvert").disabled = !state.images.length || state.busy; }
   $("imagesConvert").addEventListener("click", async () => {
     if (!state.images.length) return;
+    let completed = false;
     try {
       busy(true); message("Creating your PDF…");
       const pdf = await PDFDocument.create();
@@ -69,8 +86,9 @@
       const bytes = await pdf.save();
       downloadBlob(new Blob([bytes], {type:"application/pdf"}), "images-converted.pdf");
       message("Done — your PDF download should begin now.", "success");
+      completed = true;
     } catch (err) { message("Could not convert these images. Try JPG or PNG files and check available device memory.", "error"); console.error(err); }
-    finally { busy(false); updateImages(); }
+    finally { busy(false); if (completed) resetTool("images"); else updateImages(); }
   });
 
   $("mergeFiles").addEventListener("change", e => {
@@ -83,6 +101,7 @@
   }
   $("mergeConvert").addEventListener("click", async () => {
     if (state.merge.length < 2) return;
+    let completed = false;
     try {
       busy(true); message("Merging PDFs…");
       const out = await PDFDocument.create();
@@ -94,8 +113,9 @@
       }
       downloadBlob(new Blob([await out.save()], {type:"application/pdf"}), "merged.pdf");
       message("Done — your merged PDF download should begin now.", "success");
+      completed = true;
     } catch (err) { message("Merge failed. The PDF may be password-protected, damaged, or too large for this device.", "error"); console.error(err); }
-    finally { busy(false); updateMerge(); }
+    finally { busy(false); if (completed) resetTool("merge"); else updateMerge(); }
   });
 
   $("splitFile").addEventListener("change", async e => {
@@ -128,6 +148,7 @@
   }
   $("splitConvert").addEventListener("click", async () => {
     if (!state.split) return;
+    let completed = false;
     try {
       busy(true); message("Extracting pages…");
       const src = await PDFDocument.load(await state.split.arrayBuffer());
@@ -137,8 +158,9 @@
       setProgress(85);
       downloadBlob(new Blob([await out.save()], {type:"application/pdf"}), safeName(state.split.name)+"-pages.pdf");
       message("Done — your extracted PDF download should begin now.", "success");
+      completed = true;
     } catch (err) { message(err.message || "Could not split this PDF.", "error"); console.error(err); }
-    finally { busy(false); $("splitConvert").disabled = !state.split; }
+    finally { busy(false); if (completed) resetTool("split"); else $("splitConvert").disabled = !state.split; }
   });
 
   $("tojpgFile").addEventListener("change", e => {
@@ -150,6 +172,7 @@
   });
   $("tojpgConvert").addEventListener("click", async () => {
     if (!state.tojpg) return;
+    let completed = false;
     try {
       busy(true); message("Preparing PDF pages…");
       const bytes = await state.tojpg.arrayBuffer();
@@ -172,9 +195,10 @@
       const zipped = await zip.generateAsync({type:"blob"});
       downloadBlob(zipped, safeName(state.tojpg.name)+"-jpg-pages.zip");
       message("Done — your JPG images are inside the downloaded ZIP file.", "success");
+      completed = true;
       await loadingTask.destroy();
     } catch (err) { message("Conversion failed. Try a smaller PDF or a device with more free memory.", "error"); console.error(err); }
-    finally { busy(false); $("tojpgConvert").disabled = !state.tojpg; }
+    finally { busy(false); if (completed) resetTool("tojpg"); else $("tojpgConvert").disabled = !state.tojpg; }
   });
 
   // Make buttons disabled when no files are selected and avoid accidental duplicate clicks.

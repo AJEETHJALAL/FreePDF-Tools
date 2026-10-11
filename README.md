@@ -21,7 +21,7 @@ Then open `http://localhost:8000`.
 3. Select your repository.
 4. For a plain static site, use no build command and set the output directory to `/` (or follow the current Cloudflare Pages UI instructions for a root-level static site).
 5. Deploy and test the generated `*.pages.dev` URL on desktop Chrome and mobile Chrome.
-6. Replace `hello@example.com` with a real contact email. Review and adapt the privacy policy and terms for your actual business, country, and services.
+6. Contact email is set to `studentmart24x7@gmail.com`. Review and adapt the privacy policy and terms for your actual business, country, and services.
 7. Test all tools using non-sensitive sample files before sharing the website publicly.
 
 Cloudflare's free-plan features and limits may change. Check current plan terms before launch. A custom domain is optional and normally costs money; start with the free subdomain if you want to keep startup costs at zero.
