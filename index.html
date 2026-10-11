@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="FreePDF Tools lets you convert images to PDF, merge and split PDFs, and convert PDF pages to JPG in your browser. No login required.">
+  <meta name="theme-color" content="#f7f9fc">
+  <title>FreePDF Tools — Free online PDF tools</title>
+  <link rel="stylesheet" href="styles.css">
+  <!--
+    Privacy-first note: conversion is performed locally in this browser.
+    Third-party libraries below are loaded from CDNs. For stronger privacy/control,
+    self-host pinned library files before launch.
+  -->
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#" aria-label="FreePDF Tools home">
+      <span class="brand-mark">PDF</span><span>FreePDF <b>Tools</b></span>
+    </a>
+    <nav aria-label="Main navigation">
+      <a href="#tools">Tools</a><a href="#privacy">Privacy</a><a href="#about">About</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="eyebrow">FREE · NO ACCOUNT · FILES STAY ON YOUR DEVICE</div>
+      <h1>PDF tasks, made <span>simple.</span></h1>
+      <p>Convert images to PDF, merge files, split pages, or turn PDF pages into JPGs — right in your browser.</p>
+    </section>
+
+    <div class="ad-slot" aria-label="Advertisement placeholder">
+      <span class="ad-label">ADVERTISEMENT</span>
+      <div>Small banner ad space — connect an approved ad network after launch.</div>
+    </div>
+
+    <section id="tools" class="tool-layout">
+      <aside class="tool-nav" aria-label="Choose a tool">
+        <button class="tool-tab active" data-tool="images"> <span>▧</span> JPG to PDF</button>
+        <button class="tool-tab" data-tool="merge"><span>▤</span> Merge PDF</button>
+        <button class="tool-tab" data-tool="split"><span>✂</span> Split PDF</button>
+        <button class="tool-tab" data-tool="tojpg"><span>▧</span> PDF to JPG</button>
+      </aside>
+
+      <section class="workspace" aria-live="polite">
+        <div class="tool-panel active" id="panel-images">
+          <div class="panel-icon">▧</div>
+          <h2>JPG to PDF</h2>
+          <p>Turn one or more JPG or PNG images into a single PDF.</p>
+          <label class="dropzone" for="imageFiles">
+            <span class="upload-icon">↑</span><strong>Choose images</strong>
+            <span>or use the file picker on your device</span>
+            <small>JPG, JPEG, PNG · Multiple files supported</small>
+          </label>
+          <input id="imageFiles" type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" multiple hidden>
+          <div id="imageList" class="file-list"></div>
+          <button id="imagesConvert" class="primary" disabled>Convert to PDF</button>
+        </div>
+
+        <div class="tool-panel" id="panel-merge">
+          <div class="panel-icon">▤</div>
+          <h2>Merge PDF</h2>
+          <p>Combine several PDF files into one document in the order shown.</p>
+          <label class="dropzone" for="mergeFiles">
+            <span class="upload-icon">↑</span><strong>Choose PDF files</strong>
+            <span>Select at least two files</span><small>PDF · Multiple files supported</small>
+          </label>
+          <input id="mergeFiles" type="file" accept="application/pdf,.pdf" multiple hidden>
+          <div id="mergeList" class="file-list"></div>
+          <button id="mergeConvert" class="primary" disabled>Merge PDFs</button>
+        </div>
+
+        <div class="tool-panel" id="panel-split">
+          <div class="panel-icon">✂</div>
+          <h2>Split PDF</h2>
+          <p>Extract selected pages into a new PDF. Use ranges like <code>1-3,5,8-10</code>.</p>
+          <label class="dropzone compact" for="splitFile">
+            <span class="upload-icon">↑</span><strong>Choose a PDF</strong><small>One PDF file</small>
+          </label>
+          <input id="splitFile" type="file" accept="application/pdf,.pdf" hidden>
+          <div id="splitInfo" class="file-info"></div>
+          <label class="field-label" for="pageRanges">Pages to extract</label>
+          <input id="pageRanges" class="text-input" type="text" placeholder="Example: 1-3, 5, 8-10" disabled>
+          <button id="splitConvert" class="primary" disabled>Extract pages</button>
+        </div>
+
+        <div class="tool-panel" id="panel-tojpg">
+          <div class="panel-icon">▧</div>
+          <h2>PDF to JPG</h2>
+          <p>Render each PDF page as a JPG image. Multiple pages are downloaded as a ZIP file.</p>
+          <label class="dropzone compact" for="tojpgFile">
+            <span class="upload-icon">↑</span><strong>Choose a PDF</strong><small>One PDF file</small>
+          </label>
+          <input id="tojpgFile" type="file" accept="application/pdf,.pdf" hidden>
+          <div id="tojpgInfo" class="file-info"></div>
+          <label class="field-label" for="jpgQuality">JPG quality</label>
+          <select id="jpgQuality" class="text-input">
+            <option value="0.8">Standard</option>
+            <option value="0.92">High</option>
+            <option value="0.65">Smaller files</option>
+          </select>
+          <button id="tojpgConvert" class="primary" disabled>Convert to JPG</button>
+        </div>
+
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+        <div id="progressWrap" class="progress-wrap" hidden><div id="progressBar"></div></div>
+        <p class="privacy-note"><span>🔒</span> Your files are processed in your browser. They are not uploaded to FreePDF Tools.</p>
+      </section>
+    </section>
+
+    <div class="ad-slot lower-ad" aria-label="Advertisement placeholder">
+      <span class="ad-label">ADVERTISEMENT</span>
+      <div>Small banner ad space</div>
+    </div>
+
+    <section class="info-grid" id="privacy">
+      <article><div class="info-icon">🔐</div><h3>Privacy first</h3><p>Files are handled locally by your browser. This site does not have a file-upload server or document storage.</p></article>
+      <article><div class="info-icon">⚡</div><h3>Quick and simple</h3><p>No account, no checkout, and no waiting for a server to process your document.</p></article>
+      <article><div class="info-icon">📱</div><h3>Works across devices</h3><p>Designed for desktop and mobile browsers. Very large files may exceed a device's available memory.</p></article>
+    </section>
+
+    <section class="about-section" id="about">
+      <h2>Free PDF tools, with no fuss</h2>
+      <p>FreePDF Tools provides everyday PDF utilities in a straightforward interface. Conversion quality and supported files depend on your browser and the document itself. Password-protected, damaged, or unusually complex PDFs may not work.</p>
+      <div class="legal-links"><a href="privacy.html">Privacy Policy</a><a href="terms.html">Terms of Use</a><a href="mailto:hello@example.com">Contact</a></div>
+      <p class="fine-print">Replace hello@example.com with your real contact email before publishing.</p>
+    </section>
+  </main>
+
+  <footer><span>© <span id="year"></span> FreePDF Tools</span><span>Made for simple document tasks.</span></footer>
+</body>
+</html>
