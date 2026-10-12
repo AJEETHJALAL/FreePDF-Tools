@@ -118,37 +118,55 @@
     try {
       const doc = await PDFDocument.load(await state.split.arrayBuffer());
       $("splitInfo").textContent += " · " + doc.getPageCount() + " pages";
-      $("pageRanges").disabled = false; $("pageRanges").placeholder = "1-" + doc.getPageCount() + " (all pages)";
+      $("pageRanges").disabled = false; $("pageRanges").placeholder = "Example: 1-4, 5-69 (all pages if left blank)";
       $("splitConvert").disabled = false;
       $("splitConvert").dataset.pageCount = String(doc.getPageCount());
     } catch (err) { state.split = null; message("Could not read this PDF. It may be encrypted or damaged.", "error"); }
   }
 
   function parseRanges(input, count) {
-    const selected = new Set();
-    const parts = input.trim() ? input.split(",") : [`1-${count}`];
-    for (const raw of parts) {
-      const part = raw.trim(); if (!part) continue;
+    const rawParts = input.trim() ? input.split(",") : [`1-${count}`];
+    const ranges = [];
+    for (const raw of rawParts) {
+      const part = raw.trim();
+      if (!part) continue;
       const m = part.match(/^(\d+)\s*(?:-\s*(\d+))?$/);
-      if (!m) throw new Error("Enter pages like 1-3,5,8-10.");
-      const a = Number(m[1]), b = m[2] ? Number(m[2]) : a;
-      if (a < 1 || b < a || b > count) throw new Error("Page numbers must be between 1 and " + count + ".");
-      for (let p=a; p<=b; p++) selected.add(p-1);
+      if (!m) throw new Error("Enter pages like 1-4,5,8-10.");
+      const start = Number(m[1]);
+      const end = m[2] ? Number(m[2]) : start;
+      if (start < 1 || end < start || end > count) throw new Error("Page numbers must be between 1 and " + count + ".");
+      ranges.push({ start, end });
     }
-    if (!selected.size) throw new Error("Enter at least one page number.");
-    return [...selected].sort((a,b)=>a-b);
+    if (!ranges.length) throw new Error("Enter at least one page number or range.");
+    return ranges;
   }
+
   $("splitConvert").addEventListener("click", async () => {
     if (!state.split) return;
     try {
-      busy(true); message("Extracting pages…");
+      busy(true); message("Creating split PDF files…");
       const src = await PDFDocument.load(await state.split.arrayBuffer());
-      const indices = parseRanges($("pageRanges").value, src.getPageCount());
-      const out = await PDFDocument.create();
-      const pages = await out.copyPages(src, indices); pages.forEach(p => out.addPage(p));
-      setProgress(85);
-      downloadBlob(new Blob([await out.save()], {type:"application/pdf"}), safeName(state.split.name)+"-pages.pdf");
-      message("Done — your extracted PDF download should begin now.", "success");
+      const ranges = parseRanges($("pageRanges").value, src.getPageCount());
+      const zip = new JSZip();
+
+      for (let i = 0; i < ranges.length; i++) {
+        const { start, end } = ranges[i];
+        const out = await PDFDocument.create();
+        const indices = [];
+        for (let pageIndex = start - 1; pageIndex < end; pageIndex++) {
+          indices.push(pageIndex);
+        }
+        const pages = await out.copyPages(src, indices);
+        pages.forEach(page => out.addPage(page));
+        const bytes = await out.save();
+        const filename = `split_${start}-${end}.pdf`;
+        zip.file(filename, bytes);
+        setProgress(10 + ((i + 1) / ranges.length) * 80);
+      }
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      downloadBlob(zipBlob, safeName(state.split.name) + "-split-files.zip");
+      message("Done — your split PDFs were packaged into a ZIP and downloaded.", "success");
     } catch (err) { message(err.message || "Could not split this PDF.", "error"); console.error(err); }
     finally { busy(false); $("splitConvert").disabled = !state.split; }
   });
