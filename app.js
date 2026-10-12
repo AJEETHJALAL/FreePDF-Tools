@@ -9,7 +9,10 @@
   }
   $("year").textContent = new Date().getFullYear();
 
+  // When changing tools we clear the UI state for a fresh task (avoids needing a page refresh)
   document.querySelectorAll(".tool-tab").forEach(btn => btn.addEventListener("click", () => {
+    // reset per-tool UI/state so switching tasks doesn't require a manual refresh
+    clearToolState();
     document.querySelectorAll(".tool-tab").forEach(b => b.classList.toggle("active", b === btn));
     document.querySelectorAll(".tool-panel").forEach(p => p.classList.toggle("active", p.id === "panel-" + btn.dataset.tool));
     clearStatus();
@@ -46,6 +49,7 @@
   function checkPDF(file) { return file && (file.type === "application/pdf" || /\.pdf$/i.test(file.name)); }
   function checkImage(file) { return file && (/^image\/(jpeg|png)$/.test(file.type) || /\.(jpe?g|png)$/i.test(file.name)); }
 
+  // --- IMAGE -> PDF ---
   $("imageFiles").addEventListener("change", e => {
     clearStatus();
     const incoming = [...e.target.files].filter(checkImage);
@@ -73,6 +77,7 @@
     finally { busy(false); updateImages(); }
   });
 
+  // --- MERGE PDFs ---
   $("mergeFiles").addEventListener("change", e => {
     clearStatus(); state.merge = [...state.merge, ...[...e.target.files].filter(checkPDF)];
     e.target.value = ""; updateMerge();
@@ -98,8 +103,14 @@
     finally { busy(false); updateMerge(); }
   });
 
+  // --- SPLIT PDF ---
   $("splitFile").addEventListener("change", async e => {
-    clearStatus(); const f = [...e.target.files][0]; e.target.value = "";
+    await handleSplitFile([...e.target.files][0]);
+    e.target.value = "";
+  });
+
+  async function handleSplitFile(f) {
+    clearStatus();
     state.split = checkPDF(f) ? f : null;
     $("splitInfo").textContent = ""; $("pageRanges").value = ""; $("pageRanges").disabled = true; $("splitConvert").disabled = true;
     if (!state.split) { if (f) message("Please choose a PDF file.", "error"); return; }
@@ -111,7 +122,8 @@
       $("splitConvert").disabled = false;
       $("splitConvert").dataset.pageCount = String(doc.getPageCount());
     } catch (err) { state.split = null; message("Could not read this PDF. It may be encrypted or damaged.", "error"); }
-  });
+  }
+
   function parseRanges(input, count) {
     const selected = new Set();
     const parts = input.trim() ? input.split(",") : [`1-${count}`];
@@ -141,6 +153,7 @@
     finally { busy(false); $("splitConvert").disabled = !state.split; }
   });
 
+  // --- PDF -> JPG ---
   $("tojpgFile").addEventListener("change", e => {
     clearStatus(); const f = [...e.target.files][0]; e.target.value = "";
     state.tojpg = checkPDF(f) ? f : null;
@@ -177,6 +190,58 @@
     finally { busy(false); $("tojpgConvert").disabled = !state.tojpg; }
   });
 
+  // --- Drag & Drop support for desktop ---
+  function bindDropzones() {
+    document.querySelectorAll('.dropzone').forEach(label => {
+      const targetId = label.getAttribute('for');
+      if (!targetId) return;
+      label.addEventListener('dragenter', e => { e.preventDefault(); label.classList.add('dragover'); });
+      label.addEventListener('dragover', e => { e.preventDefault(); });
+      ['dragleave','dragend','drop'].forEach(evt => label.addEventListener(evt, e => { e.preventDefault(); label.classList.remove('dragover'); }));
+      label.addEventListener('drop', e => {
+        e.preventDefault(); const dt = e.dataTransfer; if (!dt || !dt.files || !dt.files.length) return;
+        handleDropFor(targetId, Array.from(dt.files));
+      });
+    });
+  }
+
+  async function handleDropFor(targetId, files) {
+    if (targetId === 'imageFiles') {
+      const incoming = files.filter(checkImage);
+      if (!incoming.length) { message('No supported images were dropped.', 'error'); return; }
+      state.images = [...state.images, ...incoming]; updateImages();
+    } else if (targetId === 'mergeFiles') {
+      const incoming = files.filter(checkPDF);
+      if (!incoming.length) { message('No PDF files were dropped.', 'error'); return; }
+      state.merge = [...state.merge, ...incoming]; updateMerge();
+    } else if (targetId === 'splitFile') {
+      const f = files.find(checkPDF);
+      if (!f) { message('No PDF file was dropped.', 'error'); return; }
+      await handleSplitFile(f);
+    } else if (targetId === 'tojpgFile') {
+      const f = files.find(checkPDF);
+      if (!f) { message('No PDF file was dropped.', 'error'); return; }
+      clearStatus(); state.tojpg = f; $("tojpgInfo").textContent = state.tojpg ? state.tojpg.name + " · " + formatBytes(state.tojpg.size) : ""; $("tojpgConvert").disabled = !state.tojpg || state.busy;
+    }
+  }
+
+  // Clear all tool-specific state when switching tools so the UI is fresh
+  function clearToolState() {
+    // clear image list
+    state.images = [];
+    state.merge = [];
+    state.split = null;
+    state.tojpg = null;
+    // reset inputs and UI blocks
+    try { $("imageFiles").value = ""; $("mergeFiles").value = ""; $("splitFile").value = ""; $("tojpgFile").value = ""; } catch(e){}
+    updateImages(); updateMerge();
+    $("splitInfo").textContent = ""; $("pageRanges").value = ""; $("pageRanges").disabled = true; $("splitConvert").disabled = true;
+    $("tojpgInfo").textContent = ""; $("tojpgConvert").disabled = true;
+    clearStatus();
+  }
+
+  // Initialize drag/drop bindings and initial states
+  bindDropzones();
   // Make buttons disabled when no files are selected and avoid accidental duplicate clicks.
   updateImages(); updateMerge();
 })();
